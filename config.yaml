@@ -1,0 +1,105 @@
+# config.yaml — Dataproc multi-node runs (SPEC.md). All reported results come from this config.
+# Launch: bash infra/dataproc_launch.sh <workers>; delete: bash infra/dataproc_delete.sh
+# Same keys as config.yaml; nothing produced with this file is ever reported as a result.
+
+seed: 42
+
+data:
+  raw_prefix: gs://YOUR_BUCKET/raw/amazon_reviews_2018/ratings_only/
+  raw_parquet_prefix: gs://YOUR_BUCKET/raw_parquet/amazon_reviews_2018/
+  processed_prefix: gs://YOUR_BUCKET/full/processed/
+  results_prefix: gs://YOUR_BUCKET/full/results/
+  categories: [Electronics, Books, Home_and_Kitchen]
+  available_categories: [AMAZON_FASHION, All_Beauty, Appliances, Arts_Crafts_and_Sewing, Automotive,
+    Books, CDs_and_Vinyl, Cell_Phones_and_Accessories, Clothing_Shoes_and_Jewelry, Digital_Music,
+    Electronics, Gift_Cards, Grocery_and_Gourmet_Food, Home_and_Kitchen, Industrial_and_Scientific,
+    Kindle_Store, Luxury_Beauty, Magazine_Subscriptions, Movies_and_TV, Musical_Instruments,
+    Office_Products, Patio_Lawn_and_Garden, Pet_Supplies, Prime_Pantry, Software,
+    Sports_and_Outdoors, Tools_and_Home_Improvement, Toys_and_Games, Video_Games]
+  min_user_interactions: 2
+  min_item_interactions: 5
+  shuffle_partitions_per_core: 2
+  broadcast_max_items: 5000000
+  train_test_split: 0.8
+
+als:
+  rank: 20
+  max_iter: 10
+  reg_param: 0.3
+  cold_start_strategy: drop
+  residual_on_bias: true
+  prediction_min: 1.0
+  prediction_max: 5.0
+  tuning_ranks: [5, 10, 20]
+  tuning_reg_params: [0.3, 1.0, 3.0, 10.0]
+  tuning_train_fraction: 0.8
+  baseline_damping: 10
+
+federated:
+  num_clients: [1, 4, 8, 16]
+  communication_rounds: 10
+  local_epochs: 1
+  partition_strategy: random_cohort
+  init_std: 0.2
+  scaling_fixed_num_clients: 8
+  model_num_clients: 8
+  partitions_per_core: 2
+  rows_per_partition: 200000
+  evaluate_every_round: true
+
+scaling:
+  executor_counts: [2, 4, 8, 16]
+  strong_fixed_train_rows: 20000000
+  weak_train_rows_per_executor: 1250000
+  etl_sweep_enabled: true
+  etl_strong_fixed_raw_rows: 40000000
+  etl_weak_raw_rows_per_executor: 2500000
+  repetitions: 3
+  executor_wait_sec: 180
+  scratch_prefix: gs://YOUR_BUCKET/full/scaling_scratch/
+
+streaming:
+  kafka_bootstrap_servers: da231o-m:9092   # broker on the cluster master (SPEC.md Section 5)
+  model: centralized
+  kafka_topic: amazon_reviews_stream
+  replay_rate_per_sec: 50
+  replay_max_events: 15000
+  trigger_seconds: 2
+  max_offsets_per_trigger: 20000
+  output_rows_per_file: 200000
+  idle_stop_seconds: 60
+  max_run_seconds: 3600
+  kafka_partitions: 4
+  kafka_home: /opt/kafka
+  kafka_download_url: gs://YOUR_BUCKET/infra/kafka_2.13-3.7.1.tgz
+  spark_kafka_jars: gs://YOUR_BUCKET/infra/spark-kafka-jars/
+  checkpoint_location: gs://YOUR_BUCKET/full/streaming_checkpoints/
+
+evaluation:
+  cold_user_threshold: 5
+  precision_at_k: 10
+  relevance_threshold: 4
+  precision_candidate_pool: 100
+  precision_user_sample: 50000
+
+infra:
+  gcp_project: YOUR_GCP_PROJECT_ID
+  region: asia-south1
+  image_version: 2.2-debian12
+  machine_type: n2-standard-4
+  boot_disk_type: pd-balanced
+  boot_disk_size_gb: 100
+  max_idle: 15m
+  cluster_name: da231o
+  service_account: ""
+  labels: "project=da231o"
+  init_actions_prefix: gs://YOUR_BUCKET/infra/
+  executors_per_node: 1
+  executor_cores: 3
+  executor_memory: 7g
+  executor_memory_overhead: 3g
+  small_executor_cores: 1             # producer / summary jobs beside the scorer
+  small_executor_memory: 2g
+  small_executor_memory_overhead: 1g
+  driver_memory: 8g
+  driver_max_result_size: 4g
