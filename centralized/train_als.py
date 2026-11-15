@@ -70,9 +70,15 @@ def fit_model(train_df: DataFrame, config: dict, rank: int, reg_param: float) ->
                   .withColumn("_target", F.col("rating") - F.col("_bias")))
     else:
         fit_df = train_df.withColumn("_target", F.col("rating"))
+    # Spark's default of 10 user/item blocks caps every ALS step at 10 parallel tasks; size the
+    # blocks from the cluster instead (same rule as the ETL's shuffle partitions). Blocks only
+    # change how the work is split, not the fitted model (up to floating-point rounding).
+    sc = SparkSession.builder.getOrCreate().sparkContext
+    blocks = max(10, int(sc.defaultParallelism) * int(config["data"]["shuffle_partitions_per_core"]))
     als = ALS(userCol="user_idx", itemCol="item_idx", ratingCol="_target",
               rank=int(rank), maxIter=int(a["max_iter"]), regParam=float(reg_param),
-              coldStartStrategy=a["cold_start_strategy"], seed=int(config["seed"]))
+              coldStartStrategy=a["cold_start_strategy"], seed=int(config["seed"]),
+              numUserBlocks=blocks, numItemBlocks=blocks)
     model = als.fit(fit_df)
     model.userFactors.count()  # materialize the fit (keeps it inside any timer around this call)
     meta = {"model_type": "centralized", "mu": mu, "residual_on_bias": residual,
