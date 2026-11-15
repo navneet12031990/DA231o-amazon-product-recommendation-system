@@ -18,6 +18,7 @@ from centralized.train_als import train_centralized, tune_als  # noqa: E402
 REQUIRED_KEYS = [
     "seed",
     "data.processed_prefix", "data.results_prefix", "data.train_test_split",
+    "data.shuffle_partitions_per_core",
     "als.rank", "als.max_iter", "als.reg_param", "als.cold_start_strategy",
     "als.baseline_damping", "als.residual_on_bias", "als.prediction_min", "als.prediction_max",
     "evaluation.cold_user_threshold", "evaluation.precision_at_k",
