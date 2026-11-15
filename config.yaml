@@ -1,15 +1,20 @@
 # config.yaml — Dataproc multi-node runs (SPEC.md). All reported results come from this config.
 # Launch: bash infra/dataproc_launch.sh <workers>; delete: bash infra/dataproc_delete.sh
-# Same keys as config.yaml; nothing produced with this file is ever reported as a result.
+# Final runs: 23 categories (current 3 + the 20 smallest), ~149M raw ratings; outputs under gs://da231o-spark/full23/
+# (the earlier 3-category outputs under gs://da231o-spark/full/ are kept untouched as a fallback).
 
 seed: 42
 
 data:
-  raw_prefix: gs://YOUR_BUCKET/raw/amazon_reviews_2018/ratings_only/
-  raw_parquet_prefix: gs://YOUR_BUCKET/raw_parquet/amazon_reviews_2018/
-  processed_prefix: gs://YOUR_BUCKET/full/processed/
-  results_prefix: gs://YOUR_BUCKET/full/results/
-  categories: [Electronics, Books, Home_and_Kitchen]
+  raw_prefix: gs://da231o-spark/raw/amazon_reviews_2018/ratings_only/
+  raw_parquet_prefix: gs://da231o-spark/raw_parquet/amazon_reviews_2018/
+  processed_prefix: gs://da231o-spark/full23/processed/
+  results_prefix: gs://da231o-spark/full23/results/
+  categories: [Books, Home_and_Kitchen, Electronics,
+    Automotive, Pet_Supplies, Kindle_Store, Office_Products, Patio_Lawn_and_Garden,
+    Grocery_and_Gourmet_Food, CDs_and_Vinyl, Arts_Crafts_and_Sewing, Video_Games,
+    Industrial_and_Scientific, Digital_Music, Musical_Instruments, AMAZON_FASHION, Appliances,
+    Luxury_Beauty, Prime_Pantry, Software, All_Beauty, Gift_Cards, Magazine_Subscriptions]   # 23 categories, ~149M raw
   available_categories: [AMAZON_FASHION, All_Beauty, Appliances, Arts_Crafts_and_Sewing, Automotive,
     Books, CDs_and_Vinyl, Cell_Phones_and_Accessories, Clothing_Shoes_and_Jewelry, Digital_Music,
     Electronics, Gift_Cards, Grocery_and_Gourmet_Food, Home_and_Kitchen, Industrial_and_Scientific,
@@ -54,9 +59,9 @@ scaling:
   etl_sweep_enabled: true
   etl_strong_fixed_raw_rows: 40000000
   etl_weak_raw_rows_per_executor: 2500000
-  repetitions: 3
+  repetitions: 1
   executor_wait_sec: 180
-  scratch_prefix: gs://YOUR_BUCKET/full/scaling_scratch/
+  scratch_prefix: gs://da231o-spark/full23/scaling_scratch/
 
 streaming:
   kafka_bootstrap_servers: da231o-m:9092   # broker on the cluster master (SPEC.md Section 5)
@@ -71,9 +76,9 @@ streaming:
   max_run_seconds: 3600
   kafka_partitions: 4
   kafka_home: /opt/kafka
-  kafka_download_url: gs://YOUR_BUCKET/infra/kafka_2.13-3.7.1.tgz
-  spark_kafka_jars: gs://YOUR_BUCKET/infra/spark-kafka-jars/
-  checkpoint_location: gs://YOUR_BUCKET/full/streaming_checkpoints/
+  kafka_download_url: gs://da231o-spark/infra/kafka_2.13-3.7.1.tgz
+  spark_kafka_jars: gs://da231o-spark/infra/spark-kafka-jars/
+  checkpoint_location: gs://da231o-spark/full23/streaming_checkpoints/
 
 evaluation:
   cold_user_threshold: 5
@@ -83,7 +88,7 @@ evaluation:
   precision_user_sample: 50000
 
 infra:
-  gcp_project: YOUR_GCP_PROJECT_ID
+  gcp_project: ecstatic-splice-511305-i3
   region: asia-south1
   image_version: 2.2-debian12
   machine_type: n2-standard-4
@@ -93,13 +98,10 @@ infra:
   cluster_name: da231o
   service_account: ""
   labels: "project=da231o"
-  init_actions_prefix: gs://YOUR_BUCKET/infra/
+  init_actions_prefix: gs://da231o-spark/infra/
   executors_per_node: 1
   executor_cores: 3
   executor_memory: 7g
   executor_memory_overhead: 3g
-  small_executor_cores: 1             # producer / summary jobs beside the scorer
-  small_executor_memory: 2g
-  small_executor_memory_overhead: 1g
   driver_memory: 8g
   driver_max_result_size: 4g
