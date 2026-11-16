@@ -197,10 +197,24 @@ def top_k_excluding_train(bundle: dict, test_df: DataFrame, train_df: DataFrame,
         items = items.join(bundle["item_bias"], "item_idx", "left")
     else:
         items = items.withColumn("b_i", F.lit(0.0))
-    items_pdf = items.select("item_idx", "features", F.coalesce("b_i", F.lit(0.0)).alias("b_i")).toPandas()
-    item_ids = items_pdf["item_idx"].to_numpy(dtype=np.int32)
-    item_mat = np.vstack(items_pdf["features"].to_numpy()).astype(np.float32)
-    item_b = items_pdf["b_i"].to_numpy(dtype=np.float32)
+    # Pack the item table into NumPy arrays ON THE EXECUTORS (one triple per partition) and collect
+    # only those: ~88 bytes per item on the driver. toPandas() built a Python list per item and
+    # ran the driver out of memory at 4.36M items (29 categories).
+    def _pack(rows):
+        import numpy as _np
+        ids, feats, bs = [], [], []
+        for r in rows:
+            ids.append(r[0]); feats.append(r[1]); bs.append(r[2])
+        if ids:
+            yield (_np.asarray(ids, dtype=_np.int32),
+                   _np.asarray(feats, dtype=_np.float32).reshape(len(ids), -1),
+                   _np.asarray(bs, dtype=_np.float32))
+    packed = (items.select("item_idx", "features", F.coalesce("b_i", F.lit(0.0)).alias("b_i"))
+              .rdd.mapPartitions(_pack).collect())
+    item_ids = np.concatenate([p[0] for p in packed])
+    item_mat = np.concatenate([p[1] for p in packed])
+    item_b = np.concatenate([p[2] for p in packed])
+    del packed
     bc = spark.sparkContext.broadcast((item_ids, item_mat, item_b))
     n_items = len(item_ids)
     top = int(min(pool, n_items))
@@ -322,6 +336,12 @@ def train_centralized(config: dict) -> dict:
     cc = overall["cross_category_users"]
     _log(f"train users rating in more than one category: {cc['count']:,} ({cc['share']:.2%})")
 
+    # Save the model and the RMSE metrics now, so a failure in the ranking step below can never
+    # lose a trained model. coldstart_metrics.json needs precision@k and is written at the end.
+    save_centralized_model(bundle, _join(results, "models/centralized"))
+    write_json(_join(results, "centralized_metrics.json"), overall)
+    _log(f"model bundle and centralized_metrics.json written under {results}")
+
     sampled = sample_precision_users(test, train, config).cache()
     test_sample = test.join(sampled, "user_idx")
     _log(f"precision@k on {sampled.count():,} sampled test users "
@@ -338,10 +358,8 @@ def train_centralized(config: dict) -> dict:
              f"| bias {m['baselines']['bias']['rmse']:.4f} | global {m['baselines']['global_mean']['rmse']:.4f} "
              f"| P@{ev['precision_at_k']} {m['precision_at_k']:.4f} ({m['precision_users']:,} users)")
 
-    save_centralized_model(bundle, _join(results, "models/centralized"))
-    write_json(_join(results, "centralized_metrics.json"), overall)
     write_json(_join(results, "coldstart_metrics.json"), cold_warm)
-    _log(f"model bundle and metrics written under {results}")
+    _log(f"coldstart_metrics.json written under {results}")
     recs.unpersist(); preds.unpersist(); train.unpersist(); sampled.unpersist()
     return overall
 
