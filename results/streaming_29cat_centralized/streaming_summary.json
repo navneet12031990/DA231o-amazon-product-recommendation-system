@@ -1,0 +1,26 @@
+{
+  "model": "centralized",
+  "events_received": 15000,
+  "events_scored": 15000,
+  "dropped_unknown": 0,
+  "batches": 63,
+  "duplicate_event_ids": 0,
+  "batch_processing_sec": {
+    "mean": 4.016972189857846,
+    "p50": 3.8595006465911865,
+    "max": 9.740531921386719
+  },
+  "latency_sec": {
+    "mean": 5.630447695509592,
+    "p50": 5.4751386642456055,
+    "p95": 8.265604972839355,
+    "p99": 12.021819353103638,
+    "max": 15.146819353103638
+  },
+  "publish_rate_per_sec": 50.22661603189799,
+  "scoring_throughput_per_sec": 51.277417444269226,
+  "throughput_window": "stable window (10th-90th percentile of scored time)",
+  "rmse_streamed": 0.9661919705337789,
+  "replay_rate_per_sec": 50,
+  "trigger_seconds": 2
+}
