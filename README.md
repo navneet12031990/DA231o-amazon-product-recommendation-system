@@ -168,9 +168,10 @@ synthetic data.
   part in every round; no privacy guarantee is provided or implied.
 - **One run per scaling setting** (`scaling.repetitions: 1`), so run-to-run variation is not
   measured.
-- **Hyperparameters** (rank 20, reg_param 0.3) were tuned on a development set, not re-tuned on
-  the 29-category data; warm users are slightly worse than the bias baseline, which points to
-  under-regularisation.
+- **Regularisation trade-off:** a reg_param sweep (0.3 / 1 / 3) on a validation split of the
+  29-category training data confirmed 0.3 overall (validation RMSE 1.0789 / 1.0795 / 1.0796).
+  Higher values help warm users but hurt cold users more, so one global value cannot serve both;
+  warm users stay slightly worse than the bias baseline on test.
 - **Precision@10 is about 10⁻⁶**: the model is trained to predict ratings, not to rank 4.4 M items.
 
 ## Data and citation
