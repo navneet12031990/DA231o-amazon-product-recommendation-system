@@ -83,8 +83,7 @@ than ratings, so item-side work per executor falls as the data grow.
 
 **Streaming (15,000 replayed test ratings at 50 events/s):** every event scored once
 (0 duplicates, 0 unknown IDs), 63 micro-batches, throughput ≈ 51 events/s, median latency
-5.48 s (centralized model) / 5.51 s (federated model), p95 8.3 / 8.7 s. A restart from the
-checkpoint reprocesses nothing.
+5.48 s (centralized model) / 5.51 s (federated model), p95 8.3 / 8.7 s.
 
 Raw results are in [`results/`](results/): `scaling_results.csv`, the speedup, efficiency and
 weak-scaling charts, and the two streaming summaries with per-event latencies.
@@ -172,7 +171,7 @@ synthetic data.
   29-category training data confirmed 0.3 overall (validation RMSE 1.0789 / 1.0795 / 1.0796).
   Higher values help warm users but hurt cold users more, so one global value cannot serve both;
   warm users stay slightly worse than the bias baseline on test.
-- **Precision@10 is about 10⁻⁶**: the model is trained to predict ratings, not to rank 4.4 M items.
+- **Precision@10 is below 10⁻⁵**: the model is trained to predict ratings, not to rank 4.4 M items.
 
 ## Data and citation
 
